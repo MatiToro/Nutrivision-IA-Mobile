@@ -1,0 +1,43 @@
+{
+  "cli": {
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyANPSvdfGog8GrTw7PTb20QKBETfNtW92Y",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "nutrivision-ai-d8ab7.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "nutrivision-ai-d8ab7",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "nutrivision-ai-d8ab7.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "944706231510",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:944706231510:web:cbe21d6e776699f798fd77",
+        "EXPO_PUBLIC_API_URL": "https://nutrivision-ia.onrender.com/api",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "944706231510-8u38jn80pe21eebnffcslq8i4gqq9t5l.apps.googleusercontent.com"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyANPSvdfGog8GrTw7PTb20QKBETfNtW92Y",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "nutrivision-ai-d8ab7.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "nutrivision-ai-d8ab7",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "nutrivision-ai-d8ab7.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "944706231510",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:944706231510:web:cbe21d6e776699f798fd77",
+        "EXPO_PUBLIC_API_URL": "https://nutrivision-ia.onrender.com/api",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "944706231510-8u38jn80pe21eebnffcslq8i4gqq9t5l.apps.googleusercontent.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
