@@ -1,6 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AlertTriangle, Sparkles } from 'lucide-react-native';
+import { AlertTriangle, Crown, Sparkles } from 'lucide-react-native';
 import { colors, gradients, radius } from '../theme';
 
 const ALIGNMENT = {
@@ -29,9 +29,27 @@ export function MacroTotals({ calories, proteinG, carbsG, fatG }) {
   );
 }
 
-/** Devolución del Coach IA, con el aviso de que no reemplaza a un profesional. */
-export function CoachCard({ feedback, updating, note }) {
-  if (!feedback) return null;
+/**
+ * Devolución del Coach IA, con el aviso de que no reemplaza a un profesional.
+ * - pending: el resultado del plato ya se muestra y el Coach todavía se está generando.
+ * - upsell: plan Gratuito (Coach breve) → invitación al Coach completo de Pro.
+ */
+export function CoachCard({ feedback, updating, note, pending, upsell, onUpgrade }) {
+  if (!feedback) {
+    if (!pending && !note) return null;
+    return (
+      <View style={[styles.coach, styles.coachPending]}>
+        <View style={styles.coachHead}>
+          <LinearGradient colors={gradients.primary} style={styles.coachIcon}>
+            <Sparkles size={18} color="#fff" />
+          </LinearGradient>
+          <Text style={styles.coachTitle}>Coach IA</Text>
+          {pending ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+        </View>
+        <Text style={styles.note}>{note || 'El Coach está analizando tu plato…'}</Text>
+      </View>
+    );
+  }
   const align = ALIGNMENT[feedback.alignment];
   return (
     <View style={{ gap: 8 }}>
@@ -62,6 +80,19 @@ export function CoachCard({ feedback, updating, note }) {
             <Text style={styles.tipText}>{tip}</Text>
           </View>
         ))}
+        {upsell ? (
+          <View style={styles.upsell}>
+            <Text style={styles.upsellText}>
+              ¿Querés un análisis más completo? El Coach IA de Pro evalúa tu plato según tu objetivo y te da consejos personalizados.
+            </Text>
+            {onUpgrade ? (
+              <Pressable onPress={onUpgrade} style={styles.upsellBtn} accessibilityRole="button">
+                <Crown size={14} color="#fff" />
+                <Text style={styles.upsellBtnText}>Ver NutriVision Pro</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -85,4 +116,12 @@ const styles = StyleSheet.create({
   tip: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, marginTop: 7 },
   tipText: { flex: 1, fontSize: 13, color: colors.ink, lineHeight: 19 },
+  coachPending: { opacity: 0.85 },
+  upsell: { marginTop: 6, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(14,122,58,0.15)', gap: 8 },
+  upsellText: { fontSize: 12, color: colors.inkSoft, lineHeight: 17 },
+  upsellBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+    backgroundColor: colors.accent, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7,
+  },
+  upsellBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
 });
