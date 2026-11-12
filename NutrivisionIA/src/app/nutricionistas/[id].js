@@ -10,7 +10,7 @@ import { colors, radius } from '../../theme';
 
 const shortDate = (d) => new Date(d).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
 
-/** Perfil público del nutricionista: datos, contacto (solo Premium) y valoraciones. */
+/** Perfil público del nutricionista: datos, contacto (para todos los usuarios) y valoraciones. */
 export default function NutritionistProfileScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -62,11 +62,14 @@ export default function NutritionistProfileScreen() {
             </Card>
           ) : null}
 
-          {/* Contacto: el backend solo manda los datos a usuarios Premium */}
+          {/* Contacto: desde la v2 el backend lo manda a todos (Gratis y Pro). El bloqueo
+              queda solo por compatibilidad, si el servidor todavía es una versión vieja. */}
           <Card>
             <SectionHeader title="Contacto" />
             {n.contacts ? (
               <ContactList contacts={n.contacts} />
+            ) : !n.contactsLocked ? (
+              <Text style={styles.muted}>Este nutricionista todavía no cargó sus datos de contacto.</Text>
             ) : (
               <View style={styles.locked}>
                 <View style={styles.lockIcon}><Lock size={20} color={colors.accent} /></View>
