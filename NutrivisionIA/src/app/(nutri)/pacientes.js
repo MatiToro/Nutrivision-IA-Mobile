@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { AlertTriangle, ChevronRight, KeyRound, RefreshCw, Share2, Users } from 'lucide-react-native';
+import { AlertTriangle, ChevronRight, Clock, KeyRound, RefreshCw, Share2, Users } from 'lucide-react-native';
 import { Card, EmptyState, Screen, ScreenTitle, SectionHeader } from '../../components/ui';
 import { Message } from '../../components/AuthUI';
 import { Avatar } from '../../components/Nutritionist';
@@ -155,6 +155,13 @@ function PatientRow({ p, onPress }) {
       <Avatar uri={p.photoUrl} name={p.name} size={48} />
       <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
         <Text style={styles.name} numberOfLines={1}>{p.name}</Text>
+        {/* Paciente inactivo: el backend lo marca desde los 3 días sin registrar y lo ordena primero. */}
+        {p.inactiveDays ? (
+          <View style={styles.inactive}>
+            <Clock size={12} color="#8A6212" />
+            <Text style={styles.inactiveText}>Sin registros hace {p.inactiveDays} días</Text>
+          </View>
+        ) : null}
         <Text style={styles.meta} numberOfLines={1}>{goal?.label || 'Sin objetivo'}{p.weightKg ? ` · ${String(p.weightKg).replace('.', ',')} kg` : ''}</Text>
         <View style={styles.track}>
           <View style={[styles.fill, { width: `${pct * 100}%` }, over && { backgroundColor: colors.accent }]} />
@@ -189,6 +196,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 14,
   },
   name: { fontSize: 15, fontWeight: '800', color: colors.ink },
+  inactive: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    backgroundColor: colors.accentSoft, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2,
+  },
+  inactiveText: { fontSize: 11, fontWeight: '800', color: '#8A6212' },
   meta: { fontSize: 12, color: colors.inkSoft },
   metaStrong: { fontWeight: '800', color: colors.ink },
   track: { height: 6, borderRadius: 3, backgroundColor: colors.bg, overflow: 'hidden' },
