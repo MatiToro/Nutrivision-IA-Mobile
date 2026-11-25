@@ -123,8 +123,16 @@ export default function RecipeScreen() {
 
       {!recipe && !error ? (
         <View style={styles.loading}>
+          {/* Las sugerencias de IA llegan resumidas: mientras se completan, se ve lo que ya se sabe. */}
+          {cached?.name ? <Text style={styles.loadingName}>{cached.name}</Text> : null}
           <ActivityIndicator color={colors.primary} />
-          <Text style={styles.muted}>{String(key).startsWith('fs-') ? 'Trayendo la receta de FatSecret y traduciéndola…' : 'Cargando la receta…'}</Text>
+          <Text style={styles.muted}>
+            {String(key).startsWith('fs-')
+              ? 'Trayendo la receta de FatSecret y traduciéndola…'
+              : cached && !cached.detailed
+                ? 'Preparando las cantidades y los pasos con IA…'
+                : 'Cargando la receta…'}
+          </Text>
         </View>
       ) : null}
 
@@ -269,6 +277,7 @@ function Meta({ icon, text }) {
 const styles = StyleSheet.create({
   heartBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   loading: { alignItems: 'center', gap: 10, marginTop: 40 },
+  loadingName: { fontSize: 18, fontWeight: '800', color: colors.ink, textAlign: 'center', paddingHorizontal: 16 },
   photo: { width: '100%', height: 200, backgroundColor: colors.bg },
   photoIcon: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft, height: 140 },
   name: { fontSize: 22, fontWeight: '800', color: colors.ink, letterSpacing: -0.3 },
