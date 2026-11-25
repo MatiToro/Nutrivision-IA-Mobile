@@ -6,6 +6,7 @@ import { ArrowLeft, RotateCcw } from 'lucide-react-native';
 import { Card, PrimaryButton, Screen } from '../../components/ui';
 import { Message } from '../../components/AuthUI';
 import { CoachCard, MacroTotals } from '../../components/MealParts';
+import { NutriCommentEditor, NutritionistCommentCard } from '../../components/MealComment';
 import { api } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { longDate } from '../../utils/dates';
@@ -24,7 +25,8 @@ const PORTIONS = [
 ];
 
 /**
- * Detalle de un plato guardado: foto, totales, ingredientes y devolución del Coach.
+ * Detalle de un plato guardado: foto, totales, ingredientes, comentario del
+ * nutricionista y devolución del Coach.
  * El paciente puede "Registrar de nuevo" el plato hoy (no gasta escaneos).
  * Con ?repetir=1 (desde el escáner o el historial) la opción aparece arriba de todo.
  */
@@ -139,6 +141,9 @@ export default function MealDetailScreen() {
         <>
           {repetir ? repeatCard : null}
 
+          {/* Paciente: el comentario de su nutricionista va arriba de todo (se llega desde el aviso de Inicio). */}
+          {!paciente ? <NutritionistCommentCard comment={meal.nutritionistComment} /> : null}
+
           <Card style={{ padding: 0, overflow: 'hidden' }}>
             {meal.imageUrl ? <Image source={{ uri: meal.imageUrl }} style={styles.photo} accessibilityLabel={meal.name || 'Plato'} /> : null}
             <View style={{ padding: 14, gap: 10 }}>
@@ -171,6 +176,9 @@ export default function MealDetailScreen() {
               </View>
             ))}
           </Card>
+
+          {/* El nutricionista escribe (o cambia) su comentario sobre esta comida. */}
+          {paciente ? <NutriCommentEditor patientId={paciente} mealId={meal.id} initial={meal.nutritionistComment} /> : null}
 
           <CoachCard
             feedback={meal.coachFeedback}
