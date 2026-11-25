@@ -66,9 +66,11 @@ export default function MealDetailScreen() {
     setRepeating(true);
     setRepeatError(null);
     try {
-      const data = await api(`/meals/${id}/repeat`, { method: 'POST', body: { portions }, timeout: 60000 });
+      await api(`/meals/${id}/repeat`, { method: 'POST', body: { portions }, timeout: 60000 });
       await refreshData(); // comidas de hoy, racha y progreso
-      router.replace(`/comida/${data.meal.id}`);
+      // Igual que al guardar un escaneo: vuelve a Inicio, donde se ve la comida
+      // agregada a las de hoy (ir al detalle de la copia confundía).
+      router.navigate('/');
       if (showAds) showInterstitialIfReady();
     } catch (err) {
       setRepeatError(err.message);
