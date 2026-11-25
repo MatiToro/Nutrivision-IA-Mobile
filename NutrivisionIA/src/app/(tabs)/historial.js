@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ChevronLeft, ChevronRight, History } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, History, MessageSquare, RotateCcw } from 'lucide-react-native';
 import { Card, EmptyState, PrimaryButton, Screen, ScreenTitle } from '../../components/ui';
 import { useApp } from '../../context/AppContext';
 import { colors, radius, shadow } from '../../theme';
@@ -130,7 +130,16 @@ export default function HistoryScreen() {
             <Pressable key={m.id} onPress={() => router.push(`/comida/${m.id}`)} style={({ pressed }) => [styles.mealRow, pressed && { opacity: 0.7 }]}>
               {m.imageUrl ? <Image source={{ uri: m.imageUrl }} style={styles.thumb} /> : null}
               <View style={{ flex: 1 }}>
-                <Text style={styles.mealName} numberOfLines={1}>{m.name || 'Comida'}</Text>
+                <View style={styles.nameRow}>
+                  <Text style={[styles.mealName, { flexShrink: 1 }]} numberOfLines={1}>{m.name || 'Comida'}</Text>
+                  {/* Comentario de su nutricionista (punto = todavía no lo abrió) */}
+                  {m.hasComment ? (
+                    <View accessibilityLabel={m.commentUnseen ? 'Comentario nuevo de tu nutricionista' : 'Comentario de tu nutricionista'}>
+                      <MessageSquare size={14} color={colors.primary} />
+                      {m.commentUnseen ? <View style={styles.newDot} /> : null}
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={styles.mealMacros}>
                   <Text style={{ color: colors.protein }}>P {Math.round(m.totalProteinG)}g</Text>
                   {'  ·  '}<Text style={{ color: colors.carbs }}>C {Math.round(m.totalCarbsG)}g</Text>
@@ -138,6 +147,15 @@ export default function HistoryScreen() {
                 </Text>
               </View>
               <Text style={styles.mealKcal}>{Math.round(m.totalCalories)} kcal</Text>
+              {/* Registrar de nuevo hoy (sin foto, no gasta escaneos) */}
+              <Pressable
+                onPress={() => router.push(`/comida/${m.id}?repetir=1`)}
+                hitSlop={8}
+                style={({ pressed }) => [styles.repeatBtn, pressed && { opacity: 0.6 }]}
+                accessibilityLabel={`Registrar de nuevo ${m.name || 'esta comida'}`}
+              >
+                <RotateCcw size={15} color={colors.primary} />
+              </Pressable>
             </Pressable>
           ))
         )}
@@ -167,4 +185,7 @@ const styles = StyleSheet.create({
   error: { color: colors.danger, fontSize: 13, textAlign: 'center', paddingVertical: 16 },
   mealName: { fontWeight: '700', color: colors.ink },
   mealKcal: { fontWeight: '700', color: colors.ink },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  newDot: { position: 'absolute', top: -2, right: -3, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.danger },
+  repeatBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
 });

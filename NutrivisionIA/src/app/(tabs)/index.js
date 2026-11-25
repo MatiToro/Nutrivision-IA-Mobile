@@ -1,8 +1,8 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ArrowRight, BellRing, ChevronRight, Camera, ChefHat, Refrigerator, ShoppingCart, Sparkles, Stethoscope, Utensils, WifiOff } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ArrowRight, BellRing, ChevronRight, Camera, ChefHat, MessageSquare, Refrigerator, ShoppingCart, Sparkles, Stethoscope, Utensils, WifiOff } from 'lucide-react-native';
 import { AppHeader, Badge, Card, EmptyState, Screen, SectionHeader } from '../../components/ui';
 import { CalorieRing, MacroBar, WaterTracker } from '../../components/Nutrition';
 import { Avatar } from '../../components/Nutritionist';
@@ -19,13 +19,26 @@ export default function HomeScreen() {
   const [dismissingNotice, setDismissingNotice] = useState(false);
   const connectionError = backendError || dataError;
 
+  // Aviso: comentario nuevo de su nutricionista sobre una comida. Desaparece
+  // cuando el paciente abre esa comida (el backend lo marca como visto).
+  const [commentNotice, setCommentNotice] = useState(null);
+  const loadCommentNotice = useCallback(async () => {
+    try {
+      const data = await api('/meals/comments/unseen');
+      setCommentNotice(data.count ? data : null);
+    } catch {
+      // si falla, simplemente no se muestra el aviso
+    }
+  }, []);
+  useFocusEffect(useCallback(() => { loadCommentNotice(); }, [loadCommentNotice]));
+
   const refreshAll = async () => {
     try {
       await refreshProfile();
     } catch {
       // el aviso de conexión queda visible
     }
-    await Promise.all([refreshData(), refreshLink()]);
+    await Promise.all([refreshData(), refreshLink(), loadCommentNotice()]);
   };
 
   // Aviso único: "tu nutricionista cambió tus metas"
@@ -83,6 +96,35 @@ export default function HomeScreen() {
         </Card>
       ) : null}
 
+
+      {commentNotice?.latest ? (
+        <Pressable
+          onPress={() => router.push(`/comida/${commentNotice.latest.mealId}`)}
+          style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+          accessibilityRole="button"
+        >
+          <Card style={styles.goalsNotice}>
+            <View style={styles.goalsHead}>
+              <View style={styles.goalsIcon}><MessageSquare size={18} color={colors.primary} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.noticeTitle}>
+                  {commentNotice.latest.author} comentó tu comida «{commentNotice.latest.mealName}»
+                </Text>
+                <Text style={styles.noticeText} numberOfLines={2}>“{commentNotice.latest.text}”</Text>
+                {commentNotice.count > 1 ? (
+                  <Text style={styles.noticeText}>
+                    Y {commentNotice.count - 1} {commentNotice.count - 1 === 1 ? 'comentario más' : 'comentarios más'} en tu historial.
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+            <View style={styles.goalsActions}>
+              <Text style={styles.noticeAction}>Ver comentario</Text>
+              <ArrowRight size={16} color={colors.primary} />
+            </View>
+          </Card>
+        </Pressable>
+      ) : null}
 
       {profile?.goalsNoticePending ? (
         <Card style={styles.goalsNotice}>
