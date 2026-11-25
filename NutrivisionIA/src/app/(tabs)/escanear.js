@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { ArrowLeft, Camera, Crown, ImagePlus, Lightbulb, Pencil, Sparkles, X } from 'lucide-react-native';
+import { ArrowLeft, Camera, ChevronRight, Crown, ImagePlus, Lightbulb, Pencil, RotateCcw, Sparkles, X } from 'lucide-react-native';
 import { Badge, Card, PrimaryButton, Screen, ScreenTitle, SectionHeader } from '../../components/ui';
 import { Message } from '../../components/AuthUI';
 import IngredientEditor from '../../components/IngredientEditor';
@@ -29,8 +29,11 @@ const TIPS = [
 
 /**
  * Escáner de platos, mismo flujo de dos fases que la Web:
- * 1) Foto (cámara o galería) → POST /meals/analyze: Gemini + FatSecret + Coach. No se guarda nada.
+ * 1) Foto (cámara o galería) → POST /meals/analyze?deferCoach=1: Gemini + FatSecret.
+ *    El resultado se muestra enseguida y el Coach se pide aparte (POST /meals/coach):
+ *    breve en el plan Gratuito, completo en Pro. La foto analizada cuenta como escaneo.
  * 2) El usuario revisa/edita ingredientes, le pone nombre y confirma → POST /meals (recién ahí se guarda).
+ * También permite "Registrar de nuevo" una comida reciente, sin gastar escaneos.
  */
 export default function ScanScreen() {
   const router = useRouter();
@@ -55,6 +58,16 @@ export default function ScanScreen() {
   const [coachUpdating, setCoachUpdating] = useState(false);
   const [coachError, setCoachError] = useState(null);
   const coachRequestId = useRef(0);
+  const [recent, setRecent] = useState([]);
+
+  // Comidas recientes para repetir sin sacar foto (no gastan escaneos).
+  useFocusEffect(useCallback(() => {
+    let alive = true;
+    api('/meals/recent')
+      .then((data) => { if (alive) setRecent(data.meals ?? []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []));
 
   // ---------- 1) Elegir foto ----------
   async function pickImage(source) {
@@ -88,10 +101,14 @@ export default function ScanScreen() {
     try {
       const body = new FormData();
       await appendImage(body, 'image', uri);
-      const data = await api('/meals/analyze', { method: 'POST', body, timeout: 90000 });
-      setAnalysis({ ...data, ingredients: data.ingredients.map(withBasis) });
+      // deferCoach=1: el resultado vuelve sin el Coach y se muestra enseguida.
+      const data = await api('/meals/analyze?deferCoach=1', { method: 'POST', body, timeout: 90000 });
+      const ingredients = data.ingredients.map(withBasis);
+      setAnalysis({ ...data, ingredients, coachFeedback: data.coachFeedback ?? null });
       setCoachError(null);
       if (data.dishName) setPlateName(data.dishName);
+      refreshData(); // la foto analizada ya cuenta como escaneo del día
+      if (!data.coachFeedback) regenerateCoach(ingredients, data.dishName || '');
     } catch (err) {
       setError(err.message);
       setPhoto(null);
@@ -133,10 +150,13 @@ export default function ScanScreen() {
     const changed = ingredientsSignature(cleaned) !== ingredientsSignature(analysis.ingredients);
     setAnalysis((a) => ({ ...a, ingredients: cleaned, totals: sumIngredients(cleaned) }));
     setEditing(false);
-    if (changed) regenerateCoach(cleaned); // el consejo tiene que corresponder al plato final
+    if (changed) regenerateCoach(cleaned, plateName); // el consejo tiene que corresponder al plato final
   }
 
-  async function regenerateCoach(ingredients) {
+  // Pide la devolución del Coach (después del análisis y al editar ingredientes).
+  async function regenerateCoach(ingredients, dishName) {
+    // Si todavía no había devolución (recién analizado), el mensaje de error es otro.
+    const hadCoach = Boolean(analysis?.coachFeedback);
     coachRequestId.current += 1;
     const requestId = coachRequestId.current;
     setCoachUpdating(true);
@@ -144,14 +164,18 @@ export default function ScanScreen() {
     try {
       const data = await api('/meals/coach', {
         method: 'POST',
-        body: { dishName: plateName.trim(), ingredients: ingredients.map(stripClientFields) },
+        body: { dishName: String(dishName || '').trim(), ingredients: ingredients.map(stripClientFields) },
         timeout: 60000,
       });
       if (requestId !== coachRequestId.current) return;
-      setAnalysis((a) => (a ? { ...a, coachFeedback: data.coachFeedback, coachMocked: data.coachMocked } : a));
+      setAnalysis((a) => (a ? {
+        ...a, coachFeedback: data.coachFeedback, coachMocked: data.coachMocked, coachLevel: data.coachLevel,
+      } : a));
     } catch (err) {
       if (requestId !== coachRequestId.current) return;
-      setCoachError(`No se pudo actualizar la devolución del Coach (${err.message}). La que ves corresponde al plato antes de editarlo.`);
+      setCoachError(hadCoach
+        ? `No se pudo actualizar la devolución del Coach (${err.message}). La que ves corresponde al plato antes de editarlo.`
+        : `El Coach no pudo responder (${err.message}). Podés guardar el plato igual: se guarda con una devolución básica.`);
     } finally {
       if (requestId === coachRequestId.current) setCoachUpdating(false);
     }
@@ -171,7 +195,8 @@ export default function ScanScreen() {
       body.append('name', plateName.trim());
       body.append('source', photo.source);
       body.append('ingredients', JSON.stringify(analysis.ingredients.map(stripClientFields)));
-      body.append('coachFeedback', JSON.stringify(analysis.coachFeedback));
+      // Sin devolución (el Coach no respondió), el backend guarda una básica con reglas.
+      if (analysis.coachFeedback) body.append('coachFeedback', JSON.stringify(analysis.coachFeedback));
       await api('/meals', { method: 'POST', body, timeout: 30000 });
       reset();
       await refreshData(); // racha, comidas de hoy y escaneos restantes
@@ -268,10 +293,13 @@ export default function ScanScreen() {
 
           <CoachCard
             feedback={analysis.coachFeedback}
-            updating={coachUpdating}
+            updating={coachUpdating && Boolean(analysis.coachFeedback)}
+            pending={coachUpdating && !analysis.coachFeedback}
             note={coachError || (analysis.coachMocked && !coachUpdating
               ? 'Devolución básica calculada con reglas simples: la IA no respondió en este momento.'
               : null)}
+            upsell={analysis.coachLevel === 'BRIEF'}
+            onUpgrade={() => router.push('/premium')}
           />
 
           <Card style={{ gap: 10 }}>
@@ -286,6 +314,7 @@ export default function ScanScreen() {
             />
             <PrimaryButton label={saving ? 'Guardando…' : 'Agregar a comidas de hoy'} onPress={save} disabled={!canSave} />
             {editing ? <Text style={styles.hint}>Terminá de editar los ingredientes (Listo o Cancelar) antes de agregar el plato.</Text> : null}
+            {coachUpdating && !editing ? <Text style={styles.hint}>Esperando la devolución del Coach para guardar…</Text> : null}
             <Text style={styles.hint}>El plato recién se guarda en tu historial cuando le ponés un nombre y confirmás acá.</Text>
           </Card>
         </Screen>
@@ -350,8 +379,28 @@ export default function ScanScreen() {
       {limitReached ? (
         <Card style={{ gap: 10 }}>
           <Text style={styles.quotaTitle}>Llegaste al límite de hoy</Text>
-          <Text style={styles.quotaSub}>Mañana vas a tener {limit} escaneos nuevos, o podés pasarte a NutriVision Pro para escanear sin límite.</Text>
+          <Text style={styles.quotaSub}>Mañana vas a tener {limit} escaneos nuevos, o podés pasarte a NutriVision Pro para escanear sin límite. Mientras tanto, podés repetir una comida reciente sin gastar escaneos.</Text>
           <PrimaryButton label="Ver NutriVision Pro" icon={<Crown size={16} color="#fff" />} onPress={() => router.push('/premium')} />
+        </Card>
+      ) : null}
+
+      {recent.length > 0 ? (
+        <Card>
+          <SectionHeader title="Repetir una comida" />
+          <Text style={[styles.hint, { marginBottom: 6 }]}>¿Volviste a comer lo mismo? Registralo sin sacar foto: no gasta escaneos.</Text>
+          {recent.map((m, i) => (
+            <Pressable
+              key={m.id}
+              onPress={() => router.push(`/comida/${m.id}?repetir=1`)}
+              style={({ pressed }) => [styles.recentRow, i === recent.length - 1 && { borderBottomWidth: 0 }, pressed && { opacity: 0.6 }]}
+              accessibilityLabel={`Repetir ${m.name}`}
+            >
+              <View style={styles.recentIcon}><RotateCcw size={15} color={colors.primary} /></View>
+              <Text style={styles.recentName} numberOfLines={1}>{m.name}</Text>
+              <Text style={styles.recentKcal}>{Math.round(m.totalCalories || 0)} kcal</Text>
+              <ChevronRight size={16} color={colors.inkMuted} />
+            </Pressable>
+          ))}
         </Card>
       ) : null}
 
@@ -438,6 +487,10 @@ const styles = StyleSheet.create({
   ingGrams: { fontSize: 13, color: colors.inkSoft, fontWeight: '600' },
   ingMacros: { fontSize: 12, fontWeight: '700' },
   hint: { fontSize: 12, color: colors.inkSoft, lineHeight: 17, flex: 1 },
+  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.line },
+  recentIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  recentName: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.ink },
+  recentKcal: { fontSize: 12, fontWeight: '700', color: colors.inkSoft },
   label: { fontSize: 12, fontWeight: '700', color: colors.inkSoft, textTransform: 'uppercase', letterSpacing: 0.4 },
   nameInput: { borderWidth: 1.5, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: colors.ink },
 });
