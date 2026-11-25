@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, ChevronRight, Crown, History, Pencil, Target, UserMinus, Utensils } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Crown, History, MessageSquare, Pencil, Target, UserMinus, Utensils } from 'lucide-react-native';
 import { Badge, Card, EmptyState, PrimaryButton, Screen, SectionHeader } from '../../components/ui';
 import { Message } from '../../components/AuthUI';
 import { Avatar, BackHeader } from '../../components/Nutritionist';
 import { CalorieRing, MacroBar } from '../../components/Nutrition';
 import WeekBars from '../../components/WeekBars';
 import WeightChart from '../../components/WeightChart';
+import PatientNotes from '../../components/PatientNotes';
 import { api } from '../../api/client';
 import { confirm } from '../../utils/confirm';
 import { addDays, longDate, sameDay, startOfDay } from '../../utils/dates';
@@ -182,6 +183,9 @@ export default function PatientFileScreen() {
             )}
           </Card>
 
+          {/* Notas privadas (solo las ve el nutricionista) */}
+          <PatientNotes patientId={id} initialNotes={file.notes} />
+
           {/* Objetivo y metas */}
           <Card style={{ gap: 10 }}>
             <SectionHeader title="Objetivo y metas" />
@@ -215,6 +219,7 @@ export default function PatientFileScreen() {
           {/* Comidas del período */}
           <Card>
             <SectionHeader title={offset === 0 ? 'Comidas de los últimos 7 días' : 'Comidas de esa semana'} />
+            <Text style={[styles.note, { marginBottom: 4 }]}>Tocá una comida para verla y dejarle un comentario al paciente.</Text>
             {meals === undefined ? null : meals.length === 0 ? (
               <EmptyState icon={<Utensils size={24} color={colors.primary} />} title="Sin comidas registradas" text="No registró platos en estos días." />
             ) : (
@@ -231,6 +236,8 @@ export default function PatientFileScreen() {
                       <Text style={styles.mealName} numberOfLines={1}>{m.name || 'Comida'}</Text>
                       <Text style={styles.meta}>{longDate(d)}, {pad(d.getHours())}:{pad(d.getMinutes())} h</Text>
                     </View>
+                    {/* Ya le dejaste un comentario a esta comida */}
+                    {m.hasComment ? <MessageSquare size={15} color={colors.primary} accessibilityLabel="Comentada" /> : null}
                     <Text style={styles.mealKcal}>{Math.round(m.totalCalories || 0)} kcal</Text>
                     <ChevronRight size={16} color={colors.inkMuted} />
                   </Pressable>
