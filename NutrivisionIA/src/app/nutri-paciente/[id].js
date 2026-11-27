@@ -95,6 +95,8 @@ export default function PatientFileScreen() {
     return { date, ...sum(dayMeals), count: dayMeals.length };
   }), [meals, startKey]);
   const day = days[selectedDay];
+  // Comidas del día elegido en el gráfico (como en el Historial del paciente).
+  const dayMeals = (meals || []).filter((m) => sameDay(new Date(m.loggedAt), day.date));
 
   const remove = () => confirm({
     title: 'Quitar paciente',
@@ -183,6 +185,38 @@ export default function PatientFileScreen() {
             )}
           </Card>
 
+          {/* Comidas del día elegido en el gráfico de la semana */}
+          <Card>
+            <SectionHeader title={sameDay(day.date, today) ? 'Comidas de hoy' : `Comidas del ${longDate(day.date)}`} />
+            <Text style={[styles.note, { marginBottom: 4 }]}>
+              Tocá un día del gráfico de arriba para ver sus comidas, y una comida para verla y dejarle un comentario.
+            </Text>
+            {meals === undefined ? null : dayMeals.length === 0 ? (
+              <EmptyState icon={<Utensils size={24} color={colors.primary} />} title="Sin comidas registradas" text="No registró platos ese día." />
+            ) : (
+              dayMeals.map((m, i) => {
+                const d = new Date(m.loggedAt);
+                return (
+                  <Pressable
+                    key={m.id}
+                    onPress={() => router.push({ pathname: '/comida/[id]', params: { id: m.id, paciente: id } })}
+                    style={({ pressed }) => [styles.meal, i === dayMeals.length - 1 && { borderBottomWidth: 0 }, pressed && { opacity: 0.7 }]}
+                  >
+                    {m.imageUrl ? <Image source={{ uri: m.imageUrl }} style={styles.thumb} /> : <View style={styles.thumb} />}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.mealName} numberOfLines={1}>{m.name || 'Comida'}</Text>
+                      <Text style={styles.meta}>{longDate(d)}, {pad(d.getHours())}:{pad(d.getMinutes())} h</Text>
+                    </View>
+                    {/* Ya le dejaste un comentario a esta comida */}
+                    {m.hasComment ? <MessageSquare size={15} color={colors.primary} accessibilityLabel="Comentada" /> : null}
+                    <Text style={styles.mealKcal}>{Math.round(m.totalCalories || 0)} kcal</Text>
+                    <ChevronRight size={16} color={colors.inkMuted} />
+                  </Pressable>
+                );
+              })
+            )}
+          </Card>
+
           {/* Notas privadas (solo las ve el nutricionista) */}
           <PatientNotes patientId={id} initialNotes={file.notes} />
 
@@ -213,36 +247,6 @@ export default function PatientFileScreen() {
               <WeightChart logs={file.weightLogs} />
             ) : (
               <Text style={styles.note}>Todavía no hay suficientes registros de peso para graficar.</Text>
-            )}
-          </Card>
-
-          {/* Comidas del período */}
-          <Card>
-            <SectionHeader title={offset === 0 ? 'Comidas de los últimos 7 días' : 'Comidas de esa semana'} />
-            <Text style={[styles.note, { marginBottom: 4 }]}>Tocá una comida para verla y dejarle un comentario al paciente.</Text>
-            {meals === undefined ? null : meals.length === 0 ? (
-              <EmptyState icon={<Utensils size={24} color={colors.primary} />} title="Sin comidas registradas" text="No registró platos en estos días." />
-            ) : (
-              meals.map((m, i) => {
-                const d = new Date(m.loggedAt);
-                return (
-                  <Pressable
-                    key={m.id}
-                    onPress={() => router.push({ pathname: '/comida/[id]', params: { id: m.id, paciente: id } })}
-                    style={({ pressed }) => [styles.meal, i === meals.length - 1 && { borderBottomWidth: 0 }, pressed && { opacity: 0.7 }]}
-                  >
-                    {m.imageUrl ? <Image source={{ uri: m.imageUrl }} style={styles.thumb} /> : <View style={styles.thumb} />}
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={styles.mealName} numberOfLines={1}>{m.name || 'Comida'}</Text>
-                      <Text style={styles.meta}>{longDate(d)}, {pad(d.getHours())}:{pad(d.getMinutes())} h</Text>
-                    </View>
-                    {/* Ya le dejaste un comentario a esta comida */}
-                    {m.hasComment ? <MessageSquare size={15} color={colors.primary} accessibilityLabel="Comentada" /> : null}
-                    <Text style={styles.mealKcal}>{Math.round(m.totalCalories || 0)} kcal</Text>
-                    <ChevronRight size={16} color={colors.inkMuted} />
-                  </Pressable>
-                );
-              })
             )}
           </Card>
 
